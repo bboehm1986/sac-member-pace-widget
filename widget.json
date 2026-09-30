@@ -1,0 +1,55 @@
+{
+    "id": "com.porticobenefits.memberpace",
+    "name": "AE Member Enrollment — Pace Gauge",
+    "version": "0.1.0",
+    "vendor": "Portico Benefits",
+    "license": "",
+    "eula": "",
+    "description": "Quick visual check on how far along Member Annual Enrollment is: actual completion rate vs. the expected pace for this point in the cycle. Prototype (2026-09-30), leadership requested a 'Thermometer/Barometer for expectations' for both Member and Employer reporting -- this is the Member half, stylistically paired with a separate Employer widget.",
+    "newInstancePrefix": "MemberPace",
+    "icon": "https://bboehm1986.github.io/sac-member-pace-widget/icon.svg",
+    "webcomponents": [
+        {
+            "kind": "main",
+            "tag": "com-porticobenefits-memberpace",
+            "url": "https://bboehm1986.github.io/sac-member-pace-widget/main.js",
+            "integrity": "sha384-DEHsBpX23KLGfZ1CJ4RD1zMv7D+Id1DMkcv4OUr5+UNp/Q/4GWJltJ65CfTb+zE2"
+        }
+    ],
+    "properties": {
+        "width": {
+            "type": "integer",
+            "default": 420
+        },
+        "height": {
+            "type": "integer",
+            "default": 370
+        },
+        "asOfLabel": {
+            "type": "string",
+            "default": ""
+        }
+    },
+    "dataBindings": {
+        "aggregateData": {
+            "feeds": [
+                {
+                    "id": "dimensions",
+                    "description": "Same consolidated model as sac-member-enrollment-widget/sac-member-operational-widget -- all 8 dimensions in this exact order -- RowKind, EventDate, Wave, Enrollment_Status, Defaulted, Defaulted_Timing, ActivityDate, Membership_Type. This widget only reads the StatusByWave row-kind.",
+                    "type": "dimension"
+                },
+                {
+                    "id": "measures",
+                    "description": "Same consolidated model -- all 22 measures in this exact order (see sac-member-enrollment-widget's main.js header for the full list). This widget only reads MemberCount.",
+                    "type": "mainStructureMember"
+                }
+            ]
+        }
+    },
+    "methods": {
+        "refresh": {
+            "description": "Re-renders the gauge from the currently bound data"
+        }
+    },
+    "events": {}
+}
