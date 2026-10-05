@@ -229,7 +229,9 @@
             // Portico's own employees (Is_Portico_Employee, dimensions_8)
             // are excluded, same as every other widget on the main story.
             const rows = ((this._aggregateData && this._aggregateData.data) || [])
-                .filter((r) => this._dim(r, 0) === "StatusByWave" && this._dim(r, 8) !== "Yes");
+                // FLEX members (Wave "Group A".."Group F") are excluded too
+                // (2026-10-05); they belong to sac-flex-member-widget.
+                .filter((r) => this._dim(r, 0) === "StatusByWave" && this._dim(r, 8) !== "Yes" && !/^Group /.test(this._dim(r, 2)));
 
             // Accumulate per wave (a wave can arrive as several rows, e.g.
             // split by Membership_Type -- never assign, always sum).

@@ -10,6 +10,11 @@ expectations" for both Member and Employer reporting. This is the Member
 half — a separate, stylistically similar Employer widget is built in the
 Employer Election project as its own twin, not a shared component.
 
+
+## FLEX members are excluded (v1.1.0, 2026-10-05)
+
+`GLD_AE_Member_Enrollment` is shared with the FLEX dashboard (`sac-flex-member-widget`). FLEX members carry Wave "Group A"–"Group F", and this widget drops any row whose Wave starts with `Group `, next to its Portico exclusion. Blank-Wave rows are kept, so Traditional numbers don't change. In a headless check, output was byte-identical with and without FLEX rows injected. Gold's `Employer` column is also no longer NULL: it now holds "Name (Number)". Details: `../flex-member-enrollment-report/GOLD_CHANGES.md`.
+
 ## No new Datasphere work
 
 Reuses the exact same `aggregateData` binding (`AM_MEMBER_ENROLLMENT_SUMMARY`)
