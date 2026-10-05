@@ -1,11 +1,11 @@
 {
     "id": "com.porticobenefits.memberpace",
     "name": "AE Member Enrollment — Pace Gauge",
-    "version": "0.1.0",
+    "version": "1.0.0",
     "vendor": "Portico Benefits",
     "license": "",
     "eula": "",
-    "description": "Quick visual check on how far along Member Annual Enrollment is: actual completion rate vs. the expected pace for this point in the cycle. Prototype (2026-09-30), leadership requested a 'Thermometer/Barometer for expectations' for both Member and Employer reporting -- this is the Member half, stylistically paired with a separate Employer widget.",
+    "description": "Quick visual check on how far along Member Annual Enrollment is: actual completion rate vs. the expected pace for this point in the cycle, shown as a literal thermometer. Expected pace is calculated per wave across each wave's own window and weighted by wave size; before the cycle opens it shows a neutral 'Not Open Yet' state with no pace judgement. Excludes Portico employees. Member half of a stylistic pair with a separate Employer widget.",
     "newInstancePrefix": "MemberPace",
     "icon": "https://bboehm1986.github.io/sac-member-pace-widget/icon.svg",
     "webcomponents": [
@@ -13,7 +13,7 @@
             "kind": "main",
             "tag": "com-porticobenefits-memberpace",
             "url": "https://bboehm1986.github.io/sac-member-pace-widget/main.js",
-            "integrity": "sha384-DEHsBpX23KLGfZ1CJ4RD1zMv7D+Id1DMkcv4OUr5+UNp/Q/4GWJltJ65CfTb+zE2"
+            "integrity": "sha384-BoEjoq9jpVOADTr6hq2OcxDe6YqqXxdyv5hF1yrivBrD6JGMwQxlK7UXn3340kGG"
         }
     ],
     "properties": {
@@ -35,7 +35,7 @@
             "feeds": [
                 {
                     "id": "dimensions",
-                    "description": "Same consolidated model as sac-member-enrollment-widget/sac-member-operational-widget -- all 8 dimensions in this exact order -- RowKind, EventDate, Wave, Enrollment_Status, Defaulted, Defaulted_Timing, ActivityDate, Membership_Type. This widget only reads the StatusByWave row-kind.",
+                    "description": "Same consolidated model as sac-member-enrollment-widget/sac-member-operational-widget -- all 9 dimensions in this exact order -- RowKind, EventDate, Wave, Enrollment_Status, Defaulted, Defaulted_Timing, ActivityDate, Membership_Type, Is_Portico_Employee. This widget only reads the StatusByWave row-kind (Wave, Enrollment_Status) and excludes Is_Portico_Employee = 'Yes'.",
                     "type": "dimension"
                 },
                 {

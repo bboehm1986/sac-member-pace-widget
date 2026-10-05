@@ -1,5 +1,5 @@
 /*
-    AE Member Enrollment — Pace Thermometer — SAC Custom Widget (PROTOTYPE)
+    AE Member Enrollment — Pace Thermometer — SAC Custom Widget
 
     Quick visual answer to "how far along are we": a literal thermometer
     (vertical tube + bulb, liquid fill) comparing actual completion rate
@@ -12,30 +12,31 @@
     initial semicircle-gauge version after Blair asked for something more
     literally thermometer/barometer-shaped -- "stylish, not corny."
 
-    PROTOTYPE STATUS: this is a first pass for Blair to react to and iterate
-    on, not a finished build. Two simplifications flagged for that
-    conversation:
-      1. "Expected pace" is a straight-line (linear) interpolation across
-         the fixed Oct 19 - Dec 2 cycle window -- not a real S-curve
-         accounting for the 4 waves' different windows/PSP steps. The
-         Employer suite's own "pacing badge" idea hit this same wall and
-         was never built for Member Enrollment for exactly this reason.
-         Good enough for a v1 gauge; worth revisiting once there's appetite
-         for a more accurate curve.
-      2. "Actual %" = Completed / Total Set Up SO FAR, not Completed /
-         some fixed total-eligible-population figure -- there's no
-         reliable "total eligible members" measure available yet
-         (TotalEligibleLives is still a NULL placeholder pending BR-29).
-         This reads as "completion rate among those who've started," which
-         may or may not be what "how far along" should mean here -- flag
-         this explicitly when reviewing with Blair.
+    HOW THE NUMBERS ARE DEFINED (decided with Blair, 2026-10-05):
+      - Actual %   = Completed / Total Set Up. A set-up row is created for
+                     every member automatically when their wave opens, so
+                     Total Set Up is already the population of the waves
+                     that have opened so far. (TotalEligibleLives is still
+                     a NULL placeholder pending BR-29, so there is no
+                     better denominator yet.)
+      - Expected % = PER-WAVE straight-line expectation across each wave's
+                     OWN window (see WAVE_WINDOWS), combined weighted by
+                     each wave's Total Set Up. A single line across the whole
+                     cycle read "Behind" every time a new wave opened (the
+                     denominator jumps while the line keeps climbing).
+                     Members with no Wave tag have no window of their own,
+                     so they use the whole-cycle window.
+      - Before the cycle opens, no pace judgement is made at all: neutral
+        "Not Open Yet" badge, no expected line. Counts and any fill still
+        show so a live binding can be verified before go-live.
 
     NO NEW DATASPHERE WORK -- reuses the exact same "aggregateData" binding
     (AM_MEMBER_ENROLLMENT_SUMMARY) as sac-member-enrollment-widget and
     sac-member-operational-widget, reading only the StatusByWave row-kind.
     See that widget's own main.js header for the full dimension/measure
-    order this consolidated model exposes -- this widget only needs
-    Enrollment_Status (dimensions_3) and MemberCount (measures_0).
+    order this consolidated model exposes -- this widget reads Wave
+    (dimensions_2), Enrollment_Status (dimensions_3), Is_Portico_Employee
+    (dimensions_8, 'Yes' rows are excluded) and MemberCount (measures_0).
 
     No in-widget filter controls, no theme toggle, light theme only --
     same reasoning as every widget in this suite: SAC's Optimized-story
@@ -53,6 +54,24 @@
     const CYCLE_END = new Date(2026, 11, 2);    // Dec 2, 2026
     const CYCLE_LENGTH_DAYS = Math.round((CYCLE_END - CYCLE_START) / 86400000) + 1;
 
+    // Each wave's own window, from the reference calendar (Gold's Wave_Window
+    // literals: W1 10/19-11/2, W2a 11/9-11/17, W2b 11/9-11/30, W3 11/24-12/2).
+    // Same annual-maintenance note as above -- change these together.
+    const WAVE_WINDOWS = {
+        "Wave 1":  [new Date(2026, 9, 19),  new Date(2026, 10, 2)],
+        "Wave 2a": [new Date(2026, 10, 9),  new Date(2026, 10, 17)],
+        "Wave 2b": [new Date(2026, 10, 9),  new Date(2026, 10, 30)],
+        "Wave 3":  [new Date(2026, 10, 24), new Date(2026, 11, 2)],
+    };
+
+    // Whole days into [start, end] as of `now`, clamped to 0..length, as a
+    // fraction. 0 before the window opens, 1 once it has closed.
+    function windowFraction(now, start, end) {
+        const len = Math.round((end - start) / 86400000) + 1;
+        const elapsed = Math.min(len, Math.max(0, Math.floor((now - start) / 86400000) + 1));
+        return elapsed / len;
+    }
+
     // ---- Mock data (mirrors the real SAC ResultSet row shape) ----
     function row(dims, measures) {
         const out = {};
@@ -61,21 +80,32 @@
         return out;
     }
     const NULL_20 = new Array(20).fill(null);
-    function rowStatusByWave(wave, status, count) {
+    // Dimension order matches the consolidated model: RowKind, EventDate,
+    // Wave, Enrollment_Status, Defaulted, Defaulted_Timing, ActivityDate,
+    // Membership_Type, Is_Portico_Employee. isPortico defaults to "No".
+    function rowStatusByWave(wave, status, count, isPortico) {
         return row(
-            ["StatusByWave", null, wave, status, null, null, null, null],
+            ["StatusByWave", null, wave, status, null, null, null, null, isPortico || "No"],
             [count, null].concat(NULL_20)
         );
     }
-    // Illustrative mock mirroring the same population as the rest of the
-    // suite's mock data (1703 total set up, 1472 completed -- ~86%, well
-    // ahead of a straight-line pace this early in a 45-day window).
+    // Illustrative mock across all four waves (same shape as the suite's
+    // other mocks). The Portico row must be IGNORED by the widget.
     const MOCK_AGGREGATE_DATA = { data: [
-        rowStatusByWave("Wave 1", "Success", 1472),
-        rowStatusByWave("Wave 1", "Abandoned", 77),
-        rowStatusByWave("Wave 1", "Not Started", 93),
-        rowStatusByWave("Wave 1", "In Progress", 29),
-        rowStatusByWave("Wave 1", "Needs Follow-up", 32),
+        rowStatusByWave("Wave 1", "Success", 610),
+        rowStatusByWave("Wave 1", "Abandoned", 35),
+        rowStatusByWave("Wave 1", "Not Started", 37),
+        rowStatusByWave("Wave 1", "In Progress", 8),
+        rowStatusByWave("Wave 1", "Needs Follow-up", 15),
+        rowStatusByWave("Wave 2a", "Success", 340),
+        rowStatusByWave("Wave 2a", "Abandoned", 18),
+        rowStatusByWave("Wave 2a", "Not Started", 20),
+        rowStatusByWave("Wave 2a", "Needs Follow-up", 14),
+        rowStatusByWave("Wave 2b", "Success", 480),
+        rowStatusByWave("Wave 2b", "Abandoned", 22),
+        rowStatusByWave("Wave 2b", "Not Started", 31),
+        rowStatusByWave("Wave 2b", "Needs Follow-up", 24),
+        rowStatusByWave("Wave 1", "Success", 999, "Yes"),
     ] };
 
     // ---- Template ----
@@ -124,6 +154,7 @@
             .badge.onpace { color: var(--success); border-color: rgba(20,151,111,0.35); background: var(--success-bg); }
             .badge.watch { color: var(--warning); border-color: rgba(165,112,12,0.35); background: var(--warning-bg); }
             .badge.behind { color: var(--danger); border-color: rgba(201,75,75,0.35); background: var(--danger-bg); }
+            .badge.neutral { color: var(--text-soft); border-color: rgba(91,96,114,0.35); background: rgba(91,96,114,0.10); }
             .badge.mock { color: var(--accent); border-color: rgba(106,92,240,0.35); background: var(--accent-bg); }
 
             .body-row { display: flex; gap: 22px; align-items: center; margin-top: 4px; }
@@ -134,6 +165,7 @@
             .readout-actual.onpace { color: var(--success); }
             .readout-actual.watch { color: var(--warning); }
             .readout-actual.behind { color: var(--danger); }
+            .readout-actual.neutral { color: var(--text-soft); }
             .readout-label { font-size: 10px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-soft); margin-bottom: 6px; }
             .readout-expected { font-size: 12px; color: var(--text-soft); margin: 8px 0 10px; }
             .stat-row { display: flex; gap: 18px; margin-top: 4px; }
@@ -141,7 +173,6 @@
             .stat-value { font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text); }
             .stat-label { font-size: 9.5px; font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase; color: var(--text-soft); }
 
-            .notice { margin-top: 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 8px 12px; font-size: 10.5px; color: var(--text-soft); box-shadow: var(--shadow-card); }
         </style>
         <div class="dashboard">
             <div class="eyebrow">2026 Annual Enrollment — Member</div>
@@ -164,7 +195,6 @@
                 </div>
             </div>
 
-            <div class="notice">Prototype — "Actual" = Completed ÷ Total Set Up so far; "Expected" marker assumes straight-line pacing across the full cycle window. Both open for discussion.</div>
         </div>
     `;
 
@@ -196,30 +226,55 @@
         _measure(r, i) { const m = r["measures_" + i]; return m && m.raw != null ? Number(m.raw) : 0; }
 
         _computePace() {
-            const rows = ((this._aggregateData && this._aggregateData.data) || []).filter((r) => this._dim(r, 0) === "StatusByWave");
+            // Portico's own employees (Is_Portico_Employee, dimensions_8)
+            // are excluded, same as every other widget on the main story.
+            const rows = ((this._aggregateData && this._aggregateData.data) || [])
+                .filter((r) => this._dim(r, 0) === "StatusByWave" && this._dim(r, 8) !== "Yes");
+
+            // Accumulate per wave (a wave can arrive as several rows, e.g.
+            // split by Membership_Type -- never assign, always sum).
+            const byWave = {};
             let totalSetUp = 0, completed = 0;
             rows.forEach((r) => {
+                const wave = this._dim(r, 2);
                 const count = this._measure(r, 0);
+                if (!byWave[wave]) byWave[wave] = { setUp: 0, completed: 0 };
+                byWave[wave].setUp += count;
                 totalSetUp += count;
-                if (this._dim(r, 3) === "Success") completed += count;
+                if (this._dim(r, 3) === "Success") { byWave[wave].completed += count; completed += count; }
             });
 
             const today = new Date();
-            const daysElapsed = Math.min(CYCLE_LENGTH_DAYS, Math.max(0, Math.round((today - CYCLE_START) / 86400000) + 1));
-            const expectedPct = Math.min(100, Math.round((daysElapsed / CYCLE_LENGTH_DAYS) * 100));
+            const notOpen = today < CYCLE_START;
+            const daysElapsed = Math.min(CYCLE_LENGTH_DAYS, Math.max(0, Math.floor((today - CYCLE_START) / 86400000) + 1));
+
+            // Expected % = each wave's own straight-line expectation,
+            // weighted by that wave's Total Set Up. Untagged (no Wave) rows
+            // have no window of their own, so they use the whole cycle.
+            let weighted = 0;
+            Object.keys(byWave).forEach((wave) => {
+                const win = WAVE_WINDOWS[wave] || [CYCLE_START, CYCLE_END];
+                weighted += byWave[wave].setUp * windowFraction(today, win[0], win[1]);
+            });
+            const expectedPct = totalSetUp ? Math.round((weighted / totalSetUp) * 100) : 0;
             const actualPct = totalSetUp ? Math.round((completed / totalSetUp) * 100) : 0;
+
+            // No pace judgement before the cycle opens, or with nothing set up.
+            if (notOpen || !totalSetUp) {
+                return { totalSetUp, completed, daysElapsed, expectedPct: 0, actualPct, notOpen: true, status: "neutral", statusLabel: notOpen ? "Not Open Yet" : "Nothing Set Up Yet" };
+            }
             const delta = actualPct - expectedPct;
             const status = delta >= -5 ? "onpace" : delta >= -15 ? "watch" : "behind";
             const statusLabel = status === "onpace" ? (delta >= 5 ? "Ahead of Pace" : "On Pace") : status === "watch" ? "Watch" : "Behind Pace";
 
-            return { totalSetUp, completed, daysElapsed, expectedPct, actualPct, status, statusLabel };
+            return { totalSetUp, completed, daysElapsed, expectedPct, actualPct, notOpen: false, status, statusLabel };
         }
 
         // A literal thermometer: rounded stem + bulb, liquid fill rising
         // from the bulb, a thin glass highlight for a "stylish, not corny"
         // finish, tick marks down one side, and a dashed expected-pace
         // notch crossing the stem.
-        _thermSvg(actualPct, expectedPct, status) {
+        _thermSvg(actualPct, expectedPct, status, notOpen) {
             const w = 110, h = 280;
             const cx = 46;
             const stemHalfW = 13;
@@ -227,7 +282,7 @@
             const stemBottom = 202;   // where the stem visually meets the bulb
             const bulbCy = 226;
             const bulbR = 26;
-            const colorVar = status === "onpace" ? "var(--success)" : status === "watch" ? "var(--warning)" : "var(--danger)";
+            const colorVar = status === "onpace" ? "var(--success)" : status === "watch" ? "var(--warning)" : status === "behind" ? "var(--danger)" : "var(--text-soft)";
 
             const pctToY = (pct) => stemBottom - (Math.max(0, Math.min(100, pct)) / 100) * (stemBottom - stemTop);
             const fillTopY = pctToY(actualPct);
@@ -264,8 +319,8 @@
                 <!-- glass highlight -->
                 <rect x="${(cx - stemHalfW + 3).toFixed(1)}" y="${stemTop + 4}" width="4" height="${stemBottom - stemTop - 8}" rx="2" fill="rgba(255,255,255,0.35)"></rect>
 
-                <!-- expected-pace marker -->
-                <line x1="${(cx - stemHalfW - 6).toFixed(1)}" y1="${expectedY.toFixed(1)}" x2="${(cx + stemHalfW + 6).toFixed(1)}" y2="${expectedY.toFixed(1)}" stroke="var(--text)" stroke-width="2" stroke-dasharray="3,2"></line>
+                <!-- expected-pace marker (hidden before the cycle opens) -->
+                ${notOpen ? "" : `<line x1="${(cx - stemHalfW - 6).toFixed(1)}" y1="${expectedY.toFixed(1)}" x2="${(cx + stemHalfW + 6).toFixed(1)}" y2="${expectedY.toFixed(1)}" stroke="var(--text)" stroke-width="2" stroke-dasharray="3,2"></line>`}
 
                 ${ticks}
             </svg>`;
@@ -278,16 +333,19 @@
             root.getElementById("asof").textContent = "As of: " + new Date().toLocaleString("en-US", { month: "long", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
             root.getElementById("dataBadge").textContent = this._usingMockData ? "Mock Data — Preview" : "Live";
 
-            root.getElementById("thermSvg").innerHTML = this._thermSvg(p.actualPct, p.expectedPct, p.status);
+            root.getElementById("thermSvg").innerHTML = this._thermSvg(p.actualPct, p.expectedPct, p.status, p.notOpen);
             const actualEl = root.getElementById("actualPct");
             actualEl.textContent = p.actualPct + "%";
             actualEl.className = "readout-actual " + p.status;
-            root.getElementById("expectedSub").textContent = "Expected " + p.expectedPct + "% by today (dashed line)";
+            const opens = CYCLE_START.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+            root.getElementById("expectedSub").textContent = !p.notOpen ? "Expected " + p.expectedPct + "% by today (dashed line)"
+                : p.totalSetUp ? "Enrollment opens " + opens + " — no pace target yet"
+                : "Enrollment opens " + opens;
             root.getElementById("statusBadgeWrap").innerHTML = `<span class="badge ${p.status}">${p.statusLabel}</span>`;
 
             root.getElementById("statCompleted").textContent = p.completed.toLocaleString();
             root.getElementById("statSetUp").textContent = p.totalSetUp.toLocaleString();
-            root.getElementById("statDay").textContent = p.daysElapsed + " of " + CYCLE_LENGTH_DAYS;
+            root.getElementById("statDay").textContent = p.notOpen ? "—" : p.daysElapsed + " of " + CYCLE_LENGTH_DAYS;
         }
     }
 
