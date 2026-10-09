@@ -175,7 +175,7 @@
 
         </style>
         <div class="dashboard">
-            <div class="eyebrow">2026 Annual Enrollment — Member</div>
+            <div class="eyebrow">2027 Annual Enrollment — Member</div>
             <div class="title">Enrollment Pace</div>
             <div class="asof" id="asof"></div>
             <span class="badge mock" id="dataBadge">Mock Data — Preview</span>
