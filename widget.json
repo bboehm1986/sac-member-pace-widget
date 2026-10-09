@@ -1,7 +1,7 @@
 {
     "id": "com.porticobenefits.memberpace",
     "name": "AE Member Enrollment — Pace Gauge",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "vendor": "Portico Benefits",
     "license": "",
     "eula": "",
@@ -13,7 +13,7 @@
             "kind": "main",
             "tag": "com-porticobenefits-memberpace",
             "url": "https://bboehm1986.github.io/sac-member-pace-widget/main.js",
-            "integrity": "sha384-8V8syM7QH4KrQBqUNboBFH6L+h40D0GgbzZiK+c3F8GvUGLaGhKf1xMdUz+BTDGc"
+            "integrity": "sha384-1KwAN0oaoV9wM0qipCMlAZfu4DTNuF8Kl1oZIwLyo4o5A3G5Bl/YFpXlzTe7QS7A"
         }
     ],
     "properties": {
