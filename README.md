@@ -53,6 +53,18 @@ This widget reads only the `StatusByWave` row-kind: `Wave` (`dimensions_2`),
 Verified in `preview.html` with a faked clock: Oct 19 → expected 3%, Nov 2
 → 43%, Nov 10 → 51% (hand-checked), Dec 3 → 100%.
 
+## Last-day target (v1.2.0, 2026-10-16, Patrick Wendel / Paul Sterling)
+
+The expected-pace line no longer climbs to 100%. It climbs to a **last-day
+target = 1 - (prior-cycle defaulted / prior-cycle total eligible)**, taken
+from the WaiverTrend row-kind (prior cycle = EventDate year 2026; Defaulted
+= 'Yes' rows). With the Production figures on 2026-10-16 that is 80.6%
+(5,518 defaulted of 28,463). With no prior-cycle data the target falls back
+to 100%. The target shows the whole time as a solid blue line on the tube and
+as "Last-day target X% by Dec 2" in the readout, even before the cycle opens.
+Today's expected % is the per-wave straight line, scaled to the target; the
+status tiers (+/-5, -15 points) are measured against that scaled line.
+
 ## Files
 
 - `widget.json` — manifest: properties (`width`, `height`, `asOfLabel`), a

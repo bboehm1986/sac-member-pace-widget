@@ -53,6 +53,8 @@
     const CYCLE_START = new Date(2026, 9, 19);  // Oct 19, 2026
     const CYCLE_END = new Date(2026, 11, 2);    // Dec 2, 2026
     const CYCLE_LENGTH_DAYS = Math.round((CYCLE_END - CYCLE_START) / 86400000) + 1;
+    // Prior cycle = rows whose EventDate year is 2026 (this cycle is 2027).
+    const PRIOR_EVENT_YEAR = 2026;
 
     // Each wave's own window, from the reference calendar (Gold's Wave_Window
     // literals: W1 10/19-11/2, W2a 11/9-11/17, W2b 11/9-11/30, W3 11/24-12/2).
@@ -89,6 +91,14 @@
             [count, null].concat(NULL_20)
         );
     }
+    // Prior-cycle (2026) member counts by Defaulted, used for the last-day
+    // target = 1 - defaulted / total (Patrick Wendel, 2026-10-16).
+    function rowWaiverTrend(eventDate, defaulted, count) {
+        return row(
+            ["WaiverTrend", eventDate, null, null, defaulted, null, null, null, "No"],
+            [count, null].concat(NULL_20)
+        );
+    }
     // Illustrative mock across all four waves (same shape as the suite's
     // other mocks). The Portico row must be IGNORED by the widget.
     const MOCK_AGGREGATE_DATA = { data: [
@@ -106,6 +116,8 @@
         rowStatusByWave("Wave 2b", "Not Started", 31),
         rowStatusByWave("Wave 2b", "Needs Follow-up", 24),
         rowStatusByWave("Wave 1", "Success", 999, "Yes"),
+        rowWaiverTrend("Jan 1, 2026", "No", 22945),
+        rowWaiverTrend("Jan 1, 2026", "Yes", 5518),
     ] };
 
     // ---- Template ----
@@ -186,6 +198,7 @@
                     <div class="readout-label">Actual Completion</div>
                     <div class="readout-actual" id="actualPct"></div>
                     <div class="readout-expected" id="expectedSub"></div>
+                    <div class="readout-expected" id="targetSub" style="margin-top:-4px;"></div>
                     <div id="statusBadgeWrap"></div>
                     <div class="stat-row">
                         <div class="stat"><div class="stat-value" id="statCompleted"></div><div class="stat-label">Completed</div></div>
@@ -246,6 +259,23 @@
                 if (this._dim(r, 3) === "Success") { byWave[wave].completed += count; completed += count; }
             });
 
+            // Last-day target (Patrick Wendel, 2026-10-16): the share who
+            // actively elect = 1 - (prior-cycle defaulted / prior-cycle total
+            // eligible), from the WaiverTrend row-kind (prior cycle = EventDate
+            // year 2026). Falls back to 100% when there is no prior-cycle data.
+            let priorTotal = 0, priorDefaulted = 0;
+            ((this._aggregateData && this._aggregateData.data) || [])
+                .filter((r) => this._dim(r, 0) === "WaiverTrend" && this._dim(r, 8) !== "Yes" && !/^Group /.test(this._dim(r, 2)))
+                .forEach((r) => {
+                    const ym = /(20\d{2})/.exec(this._dim(r, 1));
+                    if (!ym || Number(ym[1]) !== PRIOR_EVENT_YEAR) return;
+                    const c = this._measure(r, 0);
+                    priorTotal += c;
+                    if (this._dim(r, 4) === "Yes") priorDefaulted += c;
+                });
+            const targetPctRaw = priorTotal ? (1 - priorDefaulted / priorTotal) * 100 : 100;
+            const targetPct = Math.round(targetPctRaw * 10) / 10;
+
             const today = new Date();
             const notOpen = today < CYCLE_START;
             const daysElapsed = Math.min(CYCLE_LENGTH_DAYS, Math.max(0, Math.floor((today - CYCLE_START) / 86400000) + 1));
@@ -258,25 +288,28 @@
                 const win = WAVE_WINDOWS[wave] || [CYCLE_START, CYCLE_END];
                 weighted += byWave[wave].setUp * windowFraction(today, win[0], win[1]);
             });
-            const expectedPct = totalSetUp ? Math.round((weighted / totalSetUp) * 100) : 0;
-            const actualPct = totalSetUp ? Math.round((completed / totalSetUp) * 100) : 0;
+            // Expected pace now climbs to the last-day target, not to 100%.
+            const expectedRaw = totalSetUp ? (weighted / totalSetUp) * targetPctRaw : 0;
+            const actualRaw = totalSetUp ? (completed / totalSetUp) * 100 : 0;
+            const expectedPct = Math.round(expectedRaw);
+            const actualPct = Math.round(actualRaw);
 
             // No pace judgement before the cycle opens, or with nothing set up.
             if (notOpen || !totalSetUp) {
-                return { totalSetUp, completed, daysElapsed, expectedPct: 0, actualPct, notOpen: true, status: "neutral", statusLabel: notOpen ? "Not Open Yet" : "Nothing Set Up Yet" };
+                return { totalSetUp, completed, daysElapsed, expectedPct: 0, actualPct, targetPct, notOpen: true, status: "neutral", statusLabel: notOpen ? "Not Open Yet" : "Nothing Set Up Yet" };
             }
-            const delta = actualPct - expectedPct;
+            const delta = actualRaw - expectedRaw;
             const status = delta >= -5 ? "onpace" : delta >= -15 ? "watch" : "behind";
             const statusLabel = status === "onpace" ? (delta >= 5 ? "Ahead of Pace" : "On Pace") : status === "watch" ? "Watch" : "Behind Pace";
 
-            return { totalSetUp, completed, daysElapsed, expectedPct, actualPct, notOpen: false, status, statusLabel };
+            return { totalSetUp, completed, daysElapsed, expectedPct, actualPct, targetPct, notOpen: false, status, statusLabel };
         }
 
         // A literal thermometer: rounded stem + bulb, liquid fill rising
         // from the bulb, a thin glass highlight for a "stylish, not corny"
         // finish, tick marks down one side, and a dashed expected-pace
         // notch crossing the stem.
-        _thermSvg(actualPct, expectedPct, status, notOpen) {
+        _thermSvg(actualPct, expectedPct, status, notOpen, targetPct) {
             const w = 110, h = 280;
             const cx = 46;
             const stemHalfW = 13;
@@ -289,6 +322,7 @@
             const pctToY = (pct) => stemBottom - (Math.max(0, Math.min(100, pct)) / 100) * (stemBottom - stemTop);
             const fillTopY = pctToY(actualPct);
             const expectedY = pctToY(expectedPct);
+            const targetY = pctToY(targetPct);
 
             const ticks = [0, 25, 50, 75, 100].map((pct) => {
                 const y = pctToY(pct);
@@ -324,6 +358,9 @@
                 <!-- expected-pace marker (hidden before the cycle opens) -->
                 ${notOpen ? "" : `<line x1="${(cx - stemHalfW - 6).toFixed(1)}" y1="${expectedY.toFixed(1)}" x2="${(cx + stemHalfW + 6).toFixed(1)}" y2="${expectedY.toFixed(1)}" stroke="var(--text)" stroke-width="2" stroke-dasharray="3,2"></line>`}
 
+                <!-- last-day target marker (shown the whole time, even before the cycle opens) -->
+                <line x1="${(cx - stemHalfW - 8).toFixed(1)}" y1="${targetY.toFixed(1)}" x2="${(cx + stemHalfW + 8).toFixed(1)}" y2="${targetY.toFixed(1)}" stroke="#2f6fe0" stroke-width="2.5"></line>
+
                 ${ticks}
             </svg>`;
         }
@@ -335,7 +372,7 @@
             root.getElementById("asof").textContent = "As of: " + new Date().toLocaleString("en-US", { month: "long", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
             root.getElementById("dataBadge").textContent = this._usingMockData ? "Mock Data — Preview" : "Live";
 
-            root.getElementById("thermSvg").innerHTML = this._thermSvg(p.actualPct, p.expectedPct, p.status, p.notOpen);
+            root.getElementById("thermSvg").innerHTML = this._thermSvg(p.actualPct, p.expectedPct, p.status, p.notOpen, p.targetPct);
             const actualEl = root.getElementById("actualPct");
             actualEl.textContent = p.actualPct + "%";
             actualEl.className = "readout-actual " + p.status;
@@ -343,6 +380,8 @@
             root.getElementById("expectedSub").textContent = !p.notOpen ? "Expected " + p.expectedPct + "% by today (dashed line)"
                 : p.totalSetUp ? "Enrollment opens " + opens + " — no pace target yet"
                 : "Enrollment opens " + opens;
+            const lastDay = CYCLE_END.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+            root.getElementById("targetSub").textContent = "Last-day target " + p.targetPct + "% by " + lastDay + " (blue line)";
             root.getElementById("statusBadgeWrap").innerHTML = `<span class="badge ${p.status}">${p.statusLabel}</span>`;
 
             root.getElementById("statCompleted").textContent = p.completed.toLocaleString();
