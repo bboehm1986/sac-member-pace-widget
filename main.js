@@ -57,12 +57,12 @@
     const PRIOR_EVENT_YEAR = 2026;
 
     // Each wave's own window, from the reference calendar (Gold's Wave_Window
-    // literals: W1 10/19-11/2, W2a 11/9-11/17, W2b 11/9-11/30, W3 11/24-12/2).
+    // literals: W1 10/19-11/2, W2a 11/9-11/17, W2b 11/9-11/23, W3 11/24-12/2).
     // Same annual-maintenance note as above -- change these together.
     const WAVE_WINDOWS = {
         "Wave 1":  [new Date(2026, 9, 19),  new Date(2026, 10, 2)],
         "Wave 2a": [new Date(2026, 10, 9),  new Date(2026, 10, 17)],
-        "Wave 2b": [new Date(2026, 10, 9),  new Date(2026, 10, 30)],
+        "Wave 2b": [new Date(2026, 10, 9),  new Date(2026, 10, 23)],
         "Wave 3":  [new Date(2026, 10, 24), new Date(2026, 11, 2)],
     };
 
