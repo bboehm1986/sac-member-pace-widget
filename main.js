@@ -63,6 +63,10 @@
         "Wave 1":  [new Date(2026, 9, 19),  new Date(2026, 10, 2)],
         "Wave 2a": [new Date(2026, 10, 9),  new Date(2026, 10, 17)],
         "Wave 2b": [new Date(2026, 10, 9),  new Date(2026, 10, 23)],
+        // Wave 2c (added 2026-11-11, Patrick): members that should have been in
+        // Wave 2a, opened 11/11-11/19. Own window here; no separate last-year
+        // comparison (Patrick: lump it in with wave 2a).
+        "Wave 2c": [new Date(2026, 10, 11), new Date(2026, 10, 19)],
         "Wave 3":  [new Date(2026, 10, 24), new Date(2026, 11, 2)],
     };
 
@@ -115,6 +119,8 @@
         rowStatusByWave("Wave 2b", "Abandoned", 22),
         rowStatusByWave("Wave 2b", "Not Started", 31),
         rowStatusByWave("Wave 2b", "Needs Follow-up", 24),
+        rowStatusByWave("Wave 2c", "Success", 40),
+        rowStatusByWave("Wave 2c", "Not Started", 73),
         rowStatusByWave("Wave 1", "Success", 999, "Yes"),
         rowWaiverTrend("Jan 1, 2026", "No", 22945),
         rowWaiverTrend("Jan 1, 2026", "Yes", 5518),
