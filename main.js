@@ -302,13 +302,27 @@
 
             // No pace judgement before the cycle opens, or with nothing set up.
             if (notOpen || !totalSetUp) {
-                return { totalSetUp, completed, daysElapsed, expectedPct: 0, actualPct, targetPct, notOpen: true, status: "neutral", statusLabel: notOpen ? "Not Open Yet" : "Nothing Set Up Yet" };
+                return { totalSetUp, completed, daysElapsed, expectedPct: 0, actualPct, targetPct, actualTxt: this._pctTxt(actualRaw), expectedTxt: "0", targetTxt: this._pct1Txt(targetPctRaw), notOpen: true, status: "neutral", statusLabel: notOpen ? "Not Open Yet" : "Nothing Set Up Yet" };
             }
             const delta = actualRaw - expectedRaw;
             const status = delta >= -5 ? "onpace" : delta >= -15 ? "watch" : "behind";
             const statusLabel = status === "onpace" ? (delta >= 5 ? "Ahead of Pace" : "On Pace") : status === "watch" ? "Watch" : "Behind Pace";
 
-            return { totalSetUp, completed, daysElapsed, expectedPct, actualPct, targetPct, notOpen: false, status, statusLabel };
+            return { totalSetUp, completed, daysElapsed, expectedPct, actualPct, targetPct, actualTxt: this._pctTxt(actualRaw), expectedTxt: this._pctTxt(expectedRaw), targetTxt: this._pct1Txt(targetPctRaw), notOpen: false, status, statusLabel };
+        }
+
+        // Percent text for display from a raw percent. Whole number normally,
+        // but never rounds up to "100" unless p >= 100, and one decimal
+        // (truncated) in the 99-100 band and under 1%.
+        _pctTxt(p) {
+            if (p >= 100) return "100";
+            if ((p > 99 && p < 100) || (p > 0 && p < 1)) return (Math.floor(p * 10) / 10).toFixed(1);
+            return String(Math.round(p));
+        }
+        // One-decimal percent; "100.0" only when p >= 100.
+        _pct1Txt(p) {
+            const r = Math.round(p * 10) / 10;
+            return (r >= 100 && p < 100 ? 99.9 : r).toFixed(1);
         }
 
         // A literal thermometer: rounded stem + bulb, liquid fill rising
@@ -380,14 +394,14 @@
 
             root.getElementById("thermSvg").innerHTML = this._thermSvg(p.actualPct, p.expectedPct, p.status, p.notOpen, p.targetPct);
             const actualEl = root.getElementById("actualPct");
-            actualEl.textContent = p.actualPct + "%";
+            actualEl.textContent = p.actualTxt + "%";
             actualEl.className = "readout-actual " + p.status;
             const opens = CYCLE_START.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-            root.getElementById("expectedSub").textContent = !p.notOpen ? "Expected " + p.expectedPct + "% by today (dashed line)"
+            root.getElementById("expectedSub").textContent = !p.notOpen ? "Expected " + p.expectedTxt + "% by today (dashed line)"
                 : p.totalSetUp ? "Enrollment opens " + opens + " — no pace target yet"
                 : "Enrollment opens " + opens;
             const lastDay = CYCLE_END.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-            root.getElementById("targetSub").textContent = "Last-day target " + p.targetPct + "% by " + lastDay + " (blue line)";
+            root.getElementById("targetSub").textContent = "Last-day target " + p.targetTxt + "% by " + lastDay + " (blue line)";
             root.getElementById("statusBadgeWrap").innerHTML = `<span class="badge ${p.status}">${p.statusLabel}</span>`;
 
             root.getElementById("statCompleted").textContent = p.completed.toLocaleString();
